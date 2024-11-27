@@ -209,8 +209,10 @@ app.all('/br', async (req, res) => {
     } catch (error) {
         res.status(500).json({ message: 'Error during broadcast.', error: error.message });
     } finally {
+    if (fs.existsSync(logFilePath)) {
         fs.unlinkSync(logFilePath);
     }
+}
 });
 
 // Start server
