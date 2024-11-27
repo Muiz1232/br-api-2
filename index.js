@@ -21,13 +21,12 @@ function logFailure(userId, reason, logFilePath) {
 }
 
 async function sendInitialStatus(botToken, adminId, totalUsers) {
-    const startingText = `🚀 **Broadcast Initiation:**\n
-📡 **Preparing Transmission...**\n
-👥 **Total Users:** ${totalUsers}\n
-✅ **Messages Sent:** 0\n
-❌ **Failures:** 0\n
-\n🛠️ **Status:** Initializing... 🌟`;
-
+    const startingText = `🚀 *Broadcast Initiation:*\n
+📡 *Preparing Transmission...*\n
+👥 *Total Users:* ${totalUsers}\n
+✅ *Messages Sent:* 0\n
+❌ *Failures:* 0\n
+\n🛠️ *Status:* Initializing... 🌟`;
     const response = await axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         chat_id: adminId,
         text: startingText,
@@ -38,17 +37,17 @@ async function sendInitialStatus(botToken, adminId, totalUsers) {
 
 async function updateStatus(botToken, adminId, messageId, completedBatches, totalBatches, totalUsers, successCount, errorBreakdown) {
     const { blocked, deleted, invalid, other } = errorBreakdown;
-    const statusText = `🤖🚀 **BROADCAST PROGRESS**\n
-📡 **Transmission Update:**\n
-   ▶️ **Batches Completed:** ${completedBatches} / ${totalBatches}\n
-   👥 **Total Users:** ${totalUsers}\n
-   📨 **Messages Sent:** ✅ ${successCount}\n
-\n⚠️ **Failure Details:**\n
-   ❌ **Blocked:** ${blocked}\n
-   🗑️ **Deleted Accounts:** ${deleted}\n
-   ❓ **Invalid IDs:** ${invalid}\n
-   ⚙️ **Other Errors:** ${other}\n
-\n💻 **Status:** In Progress... 🚀`;
+    const statusText = `🤖🚀 *BROADCAST PROGRESS*\n
+📡 *Transmission Update:*\n
+   ▶️ *Batches Completed:* ${completedBatches} / ${totalBatches}\n
+   👥 *Total Users:* ${totalUsers}\n
+   📨 *Messages Sent:* ✅ ${successCount}\n
+\n⚠️ *Failure Details:*\n
+   ❌ *Blocked:* ${blocked}\n
+   🗑️ *Deleted Accounts:* ${deleted}\n
+   ❓ *Invalid IDs:* ${invalid}\n
+   ⚙️ *Other Errors:* ${other}\n
+\n💻 *Status:* In Progress... 🚀`;
     await axios.post(`https://api.telegram.org/bot${botToken}/editMessageText`, {
         chat_id: adminId,
         message_id: messageId,
@@ -59,16 +58,16 @@ async function updateStatus(botToken, adminId, messageId, completedBatches, tota
 
 async function sendFinalStats(botToken, adminId, totalUsers, successCount, errorBreakdown, logFilePath, messageId) {
     const { blocked, deleted, invalid, other } = errorBreakdown;
-    const finalText = `✅ **BROADCAST COMPLETE**\n
-🎉 **Mission Summary:**\n
-   👥 **Total Users:** ${totalUsers}\n
-   📨 **Messages Successfully Sent:** ✅ ${successCount}\n
-\n⚠️ **Failure Breakdown:**\n
-   ❌ **Blocked:** ${blocked}\n
-   🗑️ **Deleted Accounts:** ${deleted}\n
-   ❓ **Invalid IDs:** ${invalid}\n
-   ⚙️ **Other Errors:** ${other}\n
-\n🤖 **Operation Status:** Complete! 🎯`;
+    const finalText = `✅ *BROADCAST COMPLETE*\n
+🎉 *Mission Summary:*\n
+   👥 *Total Users:* ${totalUsers}\n
+   📨 *Messages Successfully Sent:* ✅ ${successCount}\n
+\n⚠️ *Failure Breakdown:*\n
+   ❌ *Blocked:* ${blocked}\n
+   🗑️ *Deleted Accounts:* ${deleted}\n
+   ❓ *Invalid IDs:* ${invalid}\n
+   ⚙️ *Other Errors:* ${other}\n
+\n🤖 *Operation Status:* Complete! 🎯`;
     await axios.post(`https://api.telegram.org/bot${botToken}/editMessageText`, {
         chat_id: adminId,
         message_id: messageId,
@@ -208,8 +207,8 @@ app.all('/br', async (req, res) => {
     const logFilePath = path.join(__dirname, `broadcast_failures_${Date.now()}.txt`);
     fs.writeFileSync(logFilePath, 'Broadcast Failure Details:\n\n', 'utf8');
 
-    const batchSize = 20;
-    const parallelLimit = 5;
+    const batchSize = 25;
+    const parallelLimit = 3;
     const userBatches = chunkArray(usersId, batchSize);
     const totalUsers = usersId.length;
     const totalBatches = userBatches.length;
