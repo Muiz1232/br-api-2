@@ -120,18 +120,18 @@ async function sendMediaOrText(botToken, userId, params, errorBreakdown, logFile
 
       let reason;
       if (error_code === 400 && description.includes("chat not found")) {
-        reason = 'Invalid ID';
-        errorBreakdown.invalid += 1;
-      } else if (error_code === 403 && description.includes("bot was blocked by the user")) {
-        reason = 'Blocked';
-        errorBreakdown.blocked += 1;
-      } else if (error_code === 400 && description.includes("user is deactivated")) {
-        reason = 'Deleted';
-        errorBreakdown.deleted += 1;
-      } else {
-        reason = `Other: ${description}`;
-        errorBreakdown.other += 1;
-      }
+    reason = 'Invalid ID';
+    errorBreakdown.invalid += 1;
+} else if (error_code === 403 && description.includes("bot was blocked by the user")) {
+    reason = 'Blocked';
+    errorBreakdown.blocked += 1;
+} else if (error_code === 403 && description.includes("user is deactivated")) {
+    reason = 'Deleted';
+    errorBreakdown.deleted += 1;
+} else {
+    reason = `Other: ${description}`;
+    errorBreakdown.other += 1;
+}
       logFailure(userId, reason, logFilePath);
     } else {
       errorBreakdown.other += 1;
