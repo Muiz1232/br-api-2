@@ -110,35 +110,33 @@ async function sendMediaOrText(botToken, userId, params, errorBreakdown, logFile
   try {
     await axios.post(`https://api.telegram.org/bot${botToken}/${apiMethod}`, requestData);
     return true;
-  } catch (error) {
+} catch (error) {
     if (error.response) {
-      const { error_code, description, parameters } = error.response.data;
-      if (error_code === 429 && parameters && parameters.retry_after) {
-        await delay(parameters.retry_after * 1000);
-        return sendMediaOrText(botToken, userId, params, errorBreakdown, logFilePath);
-      }
+        const { error_code, description, parameters } = error.response.data;
 
-      let reason;
-      if (error_code === 400 && description.includes("chat not found")) {
-    reason = 'Invalid ID';
-    errorBreakdown.invalid += 1;
-} else if (error_code === 403 && description.includes("bot was blocked by the user")) {
-    reason = 'Blocked';
-    errorBreakdown.blocked += 1;
-} else if (error_code === 403 && description.includes("user is deactivated")) {
-    reason = 'Deleted';
-    errorBreakdown.deleted += 1;
-} else {
-    reason = `Other: ${description}`;
-    errorBreakdown.other += 1;
-}
-      logFailure(userId, reason, logFilePath);
+        if (error_code === 429 && parameters && parameters.retry_after) {
+            await delay(parameters.retry_after * 1000);
+            return sendMediaOrText(botToken, userId, params, errorBreakdown, logFilePath);
+        }
+
+        if (error_code === 400 && description.includes("chat not found")) {
+            errorBreakdown.invalid += 1; // Invalid ID
+        } else if (error_code === 403 && description.includes("bot was blocked by the user")) {
+            errorBreakdown.blocked += 1; // Blocked
+        } else if (error_code === 403 && description.includes("user is deactivated")) {
+            errorBreakdown.deleted += 1; // Deleted
+        } else {
+            // Log only unclassified errors
+            errorBreakdown.other += 1;
+            logFailure(userId, `Other: ${description}`, logFilePath);
+        }
     } else {
-      errorBreakdown.other += 1;
-      logFailure(userId, `Other: ${error.message}`, logFilePath);
+        // Log network or unexpected errors
+        errorBreakdown.other += 1;
+        logFailure(userId, `Other: ${error.message}`, logFilePath);
     }
     return false;
-  }
+}
 }
 async function sendMessageBatch(botToken, userBatch, params, errorBreakdown, logFilePath) {
     let success = 0;
