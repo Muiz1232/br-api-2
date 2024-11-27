@@ -30,7 +30,8 @@ async function sendInitialStatus(botToken, adminId, totalUsers) {
 
     const response = await axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         chat_id: adminId,
-        text: startingText
+        text: startingText,
+        parse_mode: "Markdown"
     });
     return response.data.result.message_id;
 }
@@ -51,7 +52,8 @@ async function updateStatus(botToken, adminId, messageId, completedBatches, tota
     await axios.post(`https://api.telegram.org/bot${botToken}/editMessageText`, {
         chat_id: adminId,
         message_id: messageId,
-        text: statusText
+        text: statusText,
+        parse_mode: "Markdown"
     });
 }
 
@@ -70,7 +72,8 @@ async function sendFinalStats(botToken, adminId, totalUsers, successCount, error
     await axios.post(`https://api.telegram.org/bot${botToken}/editMessageText`, {
         chat_id: adminId,
         message_id: messageId,
-        text: finalText
+        text: finalText,
+        parse_mode: "Markdown"
     });
     const formData = new FormData();
     formData.append('chat_id', adminId);
