@@ -80,8 +80,8 @@ async function sendFinalStats(botToken, adminId, totalUsers, successCount, error
 
 
 async function sendMediaOrText(botToken, userId, params, errorBreakdown, logFilePath) {
-    const { type, text, caption, file_id, parse_mode = 'Markdown', disable_web_page_preview = false, protect_content = false } = params;
-    const commonData = { chat_id: userId, parse_mode, protect_content };
+    const { type, text, caption, file_id, parse_mode = 'Markdown', disable_web_page_preview = false, protect_content = false, inline_keyboard = [] } = params;
+    const commonData = { chat_id: userId, parse_mode, protect_content, reply_markup: inline};
     let apiMethod, requestData;
 
     switch (type) {
@@ -190,7 +190,8 @@ app.all('/br', async (req, res) => {
       const file_id = req.body.file_id || req.query.file_id;
       const parse_mode = req.body.parse_mode || req.query.parse_mode;
       const protect_content = req.body.protect_content || req.query.protect_content;
-      const disable_web_page_preview = req.body.disable_web_page_preview || req.query.disable_web_page_preview;      
+      const disable_web_page_preview = req.body.disable_web_preview || req.query.disable_web_preview;
+      const inline = req.body.inline_keyboard || req.query.inline_keyboard;
 
         if (!botToken || !adminId || !usersId || !type) {
             return res.status(400).json({ message: 'Missing required parameters.' });
@@ -210,7 +211,7 @@ app.all('/br', async (req, res) => {
 
         for (let i = 0; i < totalBatches; i++) {
             const batch = userBatches[i];
-            const batchSuccess = await sendMessageBatch(botToken, batch, { type, text, caption, file_id, parse_mode, disable_web_page_preview, protect_content }, errorBreakdown, logFilePath);
+            const batchSuccess = await sendMessageBatch(botToken, batch, { type, text, caption, file_id, parse_mode, disable_web_page_preview, protect_content, inline }, errorBreakdown, logFilePath);
             successCount += batchSuccess;
             await updateStatus(botToken, adminId, messageId, i + 1, totalBatches, totalUsers, successCount, errorBreakdown);
         }
