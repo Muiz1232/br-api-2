@@ -48,36 +48,36 @@ async function updateStatus(botToken, adminId, messageId, completedBatches, tota
     });
 }
 
-async function sendFinalStats(botToken, adminId, totalUsers, successCount, errorBreakdown, logFilePath, messageId) {
-    const { blocked, deleted, invalid, other } = errorBreakdown;
-    const finalText = `✅ *Broadcast Complete!*\n
+async function sendFinalStats(botToken, adminId, totalUsers, successCount, errorBreakdown, logFilePath, messageId, formattedTime) {
+  const { blocked, deleted, invalid, other } = errorBreakdown;
+  const finalText = `✅ *Broadcast Complete!*\n
+⏳ *Time Taken:* ${formattedTime}\n
 👥 *Total Users:* ${totalUsers} | ✅ *Sent:* ${successCount}\n
 ⚠️ *ERROR REPORT:*\n
-❌*Blocked Users:* ${blocked} || 🗑️ *Deleted:* ${deleted}
+❌ *Blocked:* ${blocked} || 🗑️ *Deleted:* ${deleted}\n
 ❓ *Invalid IDs:* ${invalid} || ⚙️ *Other:* ${other}\n
 🎯 *System Status:* *Complete!* 😎`;
-    await axios.post(`https://api.telegram.org/bot${botToken}/editMessageText`, {
-        chat_id: adminId,
-        message_id: messageId,
-        text: finalText,
-        parse_mode: "Markdown"
-    });
 
-    // Send log file only if there are errors
-    if (other > 0) {
-        const formData = new FormData();
-        formData.append('chat_id', adminId);
-        formData.append('document', fs.createReadStream(logFilePath));
-        await axios.post(`https://api.telegram.org/bot${botToken}/sendDocument`, formData, {
-            headers: formData.getHeaders()
-        });
-    }
+  await axios.post(`https://api.telegram.org/bot${botToken}/editMessageText`, {
+      chat_id: adminId,
+      message_id: messageId,
+      text: finalText,
+      parse_mode: "Markdown"
+  });
 
-    // Clean up log file
-    if (fs.existsSync(logFilePath)) {
-        fs.unlinkSync(logFilePath);
-    }
+  if (other) {
+      const formData = new FormData();
+      formData.append('chat_id', adminId);
+      formData.append('document', fs.createReadStream(logFilePath));
+      await axios.post(`https://api.telegram.org/bot${botToken}/sendDocument`, formData, {
+          headers: formData.getHeaders()
+      });
+      fs.unlinkSync(logFilePath);
+  } else {
+      fs.unlinkSync(logFilePath); // Remove log file if no errors occurred
+  }
 }
+
 
 async function sendMediaOrText(botToken, userId, params, errorBreakdown, logFilePath) {
     const { type, text, caption, file_id, parse_mode = 'Markdown', disable_web_page_preview = false, protect_content = false } = params;
@@ -169,6 +169,7 @@ async function sendMessageBatch(botToken, userBatch, params, errorBreakdown, log
 }
 
 app.all('/br', async (req, res) => {
+  const startTime = Date.now();
     try {
       const botToken = req.body.bot_token || req.query.bot_token;
       const adminId = req.body.admin_id || req.query.admin_id;
@@ -213,8 +214,13 @@ app.all('/br', async (req, res) => {
             successCount += batchSuccess;
             await updateStatus(botToken, adminId, messageId, i + 1, totalBatches, totalUsers, successCount, errorBreakdown);
         }
-
-        await sendFinalStats(botToken, adminId, totalUsers, successCount, errorBreakdown, logFilePath, messageId);
+        const elapsedTime = Date.now() - startTime;
+        const elapsedSeconds = Math.floor(elapsedTime / 1000);
+        const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+        const formattedTime = elapsedMinutes > 0
+            ? `${elapsedMinutes}m ${elapsedSeconds % 60}s`
+            : `${elapsedSeconds}s`;
+        await sendFinalStats(botToken, adminId, totalUsers, successCount, errorBreakdown, logFilePath, messageId,formattedTime);
         res.status(200).json({ message: 'Broadcast completed successfully.' });
     } catch (error) {
         res.status(500).json({ message: 'Error during broadcast.', error: error.message });
