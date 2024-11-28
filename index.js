@@ -80,7 +80,7 @@ async function sendFinalStats(botToken, adminId, totalUsers, successCount, error
 
 
 async function sendMediaOrText(botToken, userId, params, errorBreakdown, logFilePath) {
-    const { type, text, caption, file_id, parse_mode = 'Markdown', disable_web_page_preview = false, protect_content = false, inline_keyboard = [] } = params;
+    const { type, text, caption, file_id, parse_mode = 'Markdown', disable_web_page_preview = false, protect_content = false, inline = [] } = params;
     const commonData = {
   chat_id: userId,
   parse_mode,
