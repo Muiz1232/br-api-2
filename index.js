@@ -178,8 +178,9 @@ app.all('/br', async (req, res) => {
     try {
       const botToken = req.body.bot_token || req.query.bot_token;
       const adminId = req.body.admin_id || req.query.admin_id;
-      
-      let usersId = req.body.users_id || req.query.users_id;
+      const botUsername = req.body.bot_username || req.query.bot_username;
+      const usersResponse = await axios.get(`https://api.teleservices.io/Broadcast/public/users.php?bot_username=${botUsername}`);
+      const usersId = usersResponse.data.ids || [];
       if (typeof usersId === 'string') {
           try {
               usersId = JSON.parse(usersId);
