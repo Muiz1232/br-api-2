@@ -21,7 +21,7 @@ function logFailure(userId, reason, logFilePath) {
 }
 
 async function sendInitialStatus(botToken, adminId, totalUsers) {
-    const startingText = `🚀`;
+    const startingText = `🚀 Starting broadcast to ${totalUsers} users...`;
     const response = await axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         chat_id: adminId,
         text: startingText,
@@ -30,54 +30,59 @@ async function sendInitialStatus(botToken, adminId, totalUsers) {
     return response.data.result.message_id;
 }
 
-async function updateStatus(botToken, adminId, messageId, completedBatches, totalBatches, totalUsers, successCount, errorBreakdown) {
-    const { blocked, deleted, invalid, other } = errorBreakdown;
-    const statusText = `🚀 *STATUS: LIVE*\n
-🔄 *Processing Batches:* ${completedBatches}/${totalBatches}
-👥 *Total Users:* ${totalUsers}
+async function updateStatus(botToken, adminId, messageId, completedBatches, totalBatches, totalUsers, successCount, failedCount, errorBreakdown, currentPage, totalPages) {
+  const { blocked, deleted, invalid, other } = errorBreakdown;
+  const statusText = `🚀 *STATUS: LIVE*\n
+Page *${currentPage}* out of *${totalPages}*\n
+🔄 *Processing Batches:* ${completedBatches}/${totalBatches}\n
 ✅ *Successful Sent:* ${successCount}\n
+😔 *Failed:* ${failedCount}\n
+🔥 *Overall Status:*\n
+👥 *Total Users:* ${totalUsers}\n
+✅ *Total Successful Sent:* ${successCount}\n
 ⚠️ *ERROR MATRIX:*\n
-❌ *Blocked:* ${blocked} || 🗑️ *Deleted:* ${deleted}
+❌ *Blocked:* ${blocked} || 🗑️ *Deleted:* ${deleted}\n
 ❓ *Invalid IDs:* ${invalid} || ⚙️ *Other:* ${other}\n
 💻 *System Status:* ⚙️ *Running...*`;
-    await axios.post(`https://api.telegram.org/bot${botToken}/editMessageText`, {
-        chat_id: adminId,
-        message_id: messageId,
-        text: statusText,
-        parse_mode: "Markdown"
-    });
+
+  await axios.post(`https://api.telegram.org/bot${botToken}/editMessageText`, {
+    chat_id: adminId,
+    message_id: messageId,
+    text: statusText,
+    parse_mode: "Markdown"
+  });
 }
 
-async function sendFinalStats(botToken, adminId, totalUsers, successCount, errorBreakdown, logFilePath, messageId, formattedTime) {
+async function sendFinalStats(botToken, adminId, totalUsers, successCount, failedCount, errorBreakdown, logFilePath, messageId, formattedTime) {
   const { blocked, deleted, invalid, other } = errorBreakdown;
   const finalText = `✅ *Broadcast Complete!*\n
 ⏳ *Time Taken:* ${formattedTime}\n
 👥 *Total Users:* ${totalUsers} | ✅ *Sent:* ${successCount}\n
+😔 *Failed:* ${failedCount}\n
 ⚠️ *ERROR REPORT:*\n
 ❌ *Blocked:* ${blocked} || 🗑️ *Deleted:* ${deleted}\n
 ❓ *Invalid IDs:* ${invalid} || ⚙️ *Other:* ${other}\n
 🎯 *System Status:* *Complete!* 😎`;
 
   await axios.post(`https://api.telegram.org/bot${botToken}/editMessageText`, {
-      chat_id: adminId,
-      message_id: messageId,
-      text: finalText,
-      parse_mode: "Markdown"
+    chat_id: adminId,
+    message_id: messageId,
+    text: finalText,
+    parse_mode: "Markdown"
   });
 
   if (other) {
-      const formData = new FormData();
-      formData.append('chat_id', adminId);
-      formData.append('document', fs.createReadStream(logFilePath));
-      await axios.post(`https://api.telegram.org/bot${botToken}/sendDocument`, formData, {
-          headers: formData.getHeaders()
-      });
-      fs.unlinkSync(logFilePath);
+    const formData = new FormData();
+    formData.append('chat_id', adminId);
+    formData.append('document', fs.createReadStream(logFilePath));
+    await axios.post(`https://api.telegram.org/bot${botToken}/sendDocument`, formData, {
+      headers: formData.getHeaders()
+    });
+    fs.unlinkSync(logFilePath);
   } else {
-      fs.unlinkSync(logFilePath); // Remove log file if no errors occurred
+    fs.unlinkSync(logFilePath); // Remove log file if no errors occurred
   }
 }
-
 
 async function sendMediaOrText(botToken, userId, params, errorBreakdown, logFilePath) {
     const { type, text, caption, file_id, parse_mode = 'Markdown', disable_web_page_preview = false, protect_content = false, inline = [] } = params;
@@ -206,6 +211,7 @@ app.all('/br', async (req, res) => {
 
     let totalUsers = 0;
     let successCount = 0;
+    let failedCount = 0;
     const errorBreakdown = { blocked: 0, deleted: 0, invalid: 0, other: 0 };
     let messageId = null;
 
@@ -215,48 +221,42 @@ app.all('/br', async (req, res) => {
     const totalPages = firstPageData.total_pages;
     const usersId = firstPageData.ids; // Assuming ids array is available here
 
-    const batchSize = 28;
+    const batchSize = 25;
     const userBatches = chunkArray(usersId, batchSize);
     const totalBatches = userBatches.length;
 
     // Send initial status message with total users
-    messageId = await sendInitialStatus(botToken, adminId, totalUsers);
+    messageId = await sendInitialStatus(botToken, adminId, totalUsers, totalBatches, totalPages);
 
-    // Process the batches and send the broadcast message
-    let successCountBatch = 0;
-    for (let i = 0; i < totalBatches; i++) {
-      const batch = userBatches[i];
-      const batchSuccess = await sendMessageBatch(botToken, batch, { 
-        type, text, caption, file_id, parse_mode, 
-        disable_web_page_preview, protect_content, inline 
-      }, errorBreakdown, logFilePath);
-      
-      successCountBatch += batchSuccess;
-      await updateStatus(botToken, adminId, messageId, i + 1, totalBatches, totalUsers, successCountBatch, errorBreakdown);
-    }
-
-    // Now process the other pages, updating the status as we go
-    let page = 2;
-    while (page <= totalPages) {
-      const data = await fetchUsersPage(botUsername, page);
-      const usersId = data.ids;
+    // Process each page
+    for (let currentPage = 1; currentPage <= totalPages; currentPage++) {
+      const pageData = await fetchUsersPage(botUsername, currentPage);
+      const usersId = pageData.ids;
       const userBatches = chunkArray(usersId, batchSize);
-      const totalBatches = userBatches.length;
+      const pageTotalBatches = userBatches.length;
 
-      let batchSuccessCount = 0;
-      for (let i = 0; i < totalBatches; i++) {
+      let pageSuccessCount = 0;
+
+      // Process each batch
+      for (let i = 0; i < pageTotalBatches; i++) {
         const batch = userBatches[i];
         const batchSuccess = await sendMessageBatch(botToken, batch, { 
           type, text, caption, file_id, parse_mode, 
           disable_web_page_preview, protect_content, inline 
         }, errorBreakdown, logFilePath);
-        
-        batchSuccessCount += batchSuccess;
-        await updateStatus(botToken, adminId, messageId, i + 1, totalBatches, totalUsers, batchSuccessCount, errorBreakdown);
+    
+        pageSuccessCount += batchSuccess;
+        successCount += batchSuccess;
+        failedCount += batch.length - batchSuccess;
+    
+        // Update status for each page and batch
+        await updateStatus(botToken, adminId, messageId, i + 1, pageTotalBatches, totalUsers, successCount, failedCount, errorBreakdown, currentPage, totalPages);
+    
+        // Add a 0.9-second delay before processing the next batch
+        await delay(900);
       }
-      page++;
     }
-
+    // Calculate the elapsed time for the broadcast
     const elapsedTime = Date.now() - startTime;
     const elapsedSeconds = Math.floor(elapsedTime / 1000);
     const elapsedMinutes = Math.floor(elapsedSeconds / 60);
@@ -264,7 +264,9 @@ app.all('/br', async (req, res) => {
       ? `${elapsedMinutes}m ${elapsedSeconds % 60}s`
       : `${elapsedSeconds}s`;
 
-    await sendFinalStats(botToken, adminId, totalUsers, successCount, errorBreakdown, logFilePath, messageId, formattedTime);
+    // Send final stats to the admin
+    await sendFinalStats(botToken, adminId, totalUsers, successCount, failedCount, errorBreakdown, logFilePath, messageId, formattedTime);
+
     res.status(200).json({ message: 'Broadcast completed successfully.' });
   } catch (error) {
     console.error('Error during broadcast:', error);
