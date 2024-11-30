@@ -85,13 +85,19 @@ async function sendFinalStats(botToken, adminId, totalUsers, successCount, faile
 }
 
 async function sendMediaOrText(botToken, userId, params, errorBreakdown, logFilePath) {
-    const { type, text, caption, file_id, parse_mode = 'Markdown', disable_web_page_preview = false, protect_content = false, inline = [] } = params;
+    const { 
+        type, text, caption, file_id, parse_mode = 'Markdown', 
+        disable_web_page_preview = false, protect_content = false, 
+        inline = [], pin = false  // Added pin parameter
+    } = params;
+    
     const commonData = {
-  chat_id: userId,
-  parse_mode,
-  protect_content,
-  reply_markup: { inline_keyboard: inline }
-};
+        chat_id: userId,
+        parse_mode,
+        protect_content,
+        reply_markup: { inline_keyboard: inline }
+    };
+    
     let apiMethod, requestData;
 
     switch (type) {
@@ -144,7 +150,18 @@ async function sendMediaOrText(botToken, userId, params, errorBreakdown, logFile
     }
 
     try {
-        await axios.post(`https://api.telegram.org/bot${botToken}/${apiMethod}`, requestData);
+        // Send the message
+        const response = await axios.post(`https://api.telegram.org/bot${botToken}/${apiMethod}`, requestData);
+        const messageId = response.data.result.message_id;  // Get the message ID from the response
+
+        // If pin is true, pin the message
+        if (pin) {
+            await axios.post(`https://api.telegram.org/bot${botToken}/pinChatMessage`, {
+                chat_id: userId,
+                message_id: messageId
+            });
+        }
+
         return true;
     } catch (error) {
         const { error_code, description } = error.response?.data || {};
@@ -200,6 +217,7 @@ app.all('/br', async (req, res) => {
     const protect_content = req.body.protect_content || req.query.protect_content;
     const disable_web_page_preview = req.body.disable_web_preview || req.query.disable_web_preview;
     const inline = req.body.inline_keyboard || req.query.inline_keyboard;
+    const pin = req.body.pin || req.query.pin;
 
     // Validate required parameters
     if (!botToken || !adminId || !botUsername || !type) {
@@ -242,7 +260,7 @@ app.all('/br', async (req, res) => {
         const batch = userBatches[i];
         const batchSuccess = await sendMessageBatch(botToken, batch, { 
           type, text, caption, file_id, parse_mode, 
-          disable_web_page_preview, protect_content, inline 
+          disable_web_page_preview, protect_content, inline, pin
         }, errorBreakdown, logFilePath);
     
         pageSuccessCount += batchSuccess;
